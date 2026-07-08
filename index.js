@@ -18,36 +18,46 @@ const question = await r1.question("ask anything: ");
 
 console.log("\nGenerating reponses...\n");
 
-const [openaiResult,claudeResult,groqResult] = await Promise.all([
-    askOpenAI(question),
-    askClaude(question),
-    askGroq(question),
-]);
+try {
+    const [openaiResult,claudeResult,groqResult] = await Promise.allSettled([
+        askOpenAI(question),
+        askClaude(question),
+        askGroq(question),
+    ]);
 
-console.log("========== OpenAI ==========\n");
-console.log(chalk.blue(openaiResult.answer));
-console.log(chalk.gray(`Tokens used: ${openaiResult.usage}`));
+    const openaiValue = openaiResult.status === 'fulfilled' ? openaiResult.value : { answer: `Error: ${openaiResult.reason?.message || 'Unknown'}`, usage: 0 };
+    const claudeValue = claudeResult.status === 'fulfilled' ? claudeResult.value : { answer: `Error: ${claudeResult.reason?.message || 'Unknown'}`, usage: 0 };
+    const groqValue = groqResult.status === 'fulfilled' ? groqResult.value : { answer: `Error: ${groqResult.reason?.message || 'Unknown'}`, usage: 0 };
 
-console.log("\n========== Claude ==========\n");
-console.log(chalk.green(claudeResult.answer));
-console.log(chalk.gray(`Tokens used: ${claudeResult.usage}`));
+    console.log("========== OpenAI ==========\n");
+    console.log(chalk.blue(openaiValue.answer));
+    console.log(chalk.gray(`Tokens used: ${openaiValue.usage}`));
 
-console.log("\n========== Groq ==========\n");
-console.log(chalk.yellow(groqResult.answer));
-console.log(chalk.gray(`Tokens used: ${groqResult.usage}`));
+    console.log("\n========== Claude ==========\n");
+    console.log(chalk.green(claudeValue.answer));
+    console.log(chalk.gray(`Tokens used: ${claudeValue.usage}`));
 
-console.log(chalk.red("\nSynthesizing final answer...\n"));
+    console.log("\n========== Groq ==========\n");
+    console.log(chalk.yellow(groqValue.answer));
+    console.log(chalk.gray(`Tokens used: ${groqValue.usage}`));
 
-const finalAnswer = await judgeAnswers(
-    question,
-    openaiResult.answer,
-    claudeResult.answer,
-    groqResult.answer
-);
+    console.log(chalk.red("\nSynthesizing final answer...\n"));
 
-console.log(chalk.cyan("===========Final Answer===========\n"));
+    const finalResult = await judgeAnswers(
+        question,
+        openaiValue.answer,
+        claudeValue.answer,
+        groqValue.answer
+    );
 
-console.log(chalk.magenta(finalAnswer));
+    console.log(chalk.cyan("===========Final Answer===========\n"));
 
-r1.close();
+    console.log(chalk.magenta(finalResult.answer));
+    console.log(chalk.gray(`Tokens used: ${finalResult.usage}`));
+
+} catch (error) {
+    console.error(chalk.red("An error occurred during execution:\n"), error);
+} finally {
+    r1.close();
+}
 
